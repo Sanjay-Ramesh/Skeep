@@ -1,9 +1,13 @@
 import React, { useState } from 'react'
+
 import { RxCross1 } from 'react-icons/rx';
 
 
 
-function NotesCard({CardInfo,oidx,userList,open}){
+
+function NotesCard({CardInfo,oidx,userList,open,note}){
+
+
 
     const handleCheckBox = (oidx,idx)=>{
         var temp = [...userList]
@@ -27,7 +31,7 @@ let [isOpen, setIsOpen] = useState(true)
           ""
         )}
   
-        <div onClick={()=>{openModal(item,idx)}} className="p-[0.95rem]">
+        <div  className="p-[0.95rem]">
           <div className="flex flex-col gap-2">
             <h1 className="font-semibold" id="title">
               {card.Title}
@@ -42,8 +46,8 @@ let [isOpen, setIsOpen] = useState(true)
               {card.List.length > 0 && card.List.map((item, idx) => {
                
                 return(
-                <div className="flex gap-2">
-                  <input onClick={()=>{handleCheckBox(oidx,idx)}} checked={JSON.parse(item.completed)} type="checkbox" name={item.name} id={idx} />
+                <div key={item.title} className="flex gap-2">
+                  <input onChange={()=>{handleCheckBox(oidx,idx)}} checked={JSON.parse(item.completed)} type="checkbox" name={item.name} id={idx} />
                   <h1 className={JSON.parse(item.completed)?"text-decoration-line: line-through text-green-500":""}>{item.title}</h1>
                 </div>
                 )
@@ -57,7 +61,7 @@ let [isOpen, setIsOpen] = useState(true)
             <div className="flex flex-row flex-wrap gap-4">
               {card.tags.length>0 && card.tags.map((tag,idx)=>{
                 return (
-                  <div className="p-2  group transition-all overflow-hidden duration-120  flex justify-center flex-row gap-2 items-center rounded-r-full rounded-l-full outline-gray-700/[85%] outline outline-[1px]">
+                  <div key={tag} className="p-2  group transition-all overflow-hidden duration-120  flex justify-center flex-row gap-2 items-center rounded-r-full rounded-l-full outline-gray-700/[85%] outline outline-[1px]">
                   <h1 className="text-[0.7rem]">{tag}</h1>
                   {/* <div className="hidden scale-75 rounded-full group-hover:block">
                     <RxCross1 onClick={()=>{removeTag(idx)}} className="hover:bg-slate-500/[55%]" />
