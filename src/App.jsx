@@ -4,19 +4,19 @@ import {
   BsBell,
   BsCheck2Square,
   BsLightbulb,
-  BsPciCard,
   BsTag,
-  BsPalette,
   BsPlus,
 } from "react-icons/bs";
 import "./index.css";
 import { Dialog, Transition } from "@headlessui/react";
 import { HiOutlinePhotograph } from "react-icons/hi";
 import { RxCross1 } from "react-icons/rx";
-import { useState, Fragment, useEffect } from "react";
+import { useState, Fragment, useEffect, useId } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { FiMoreVertical } from "react-icons/fi";
 import NotesCards from "./components/NotesCard";
+import { DragDropContext,Droppable,Draggable } from "react-beautiful-dnd";
+import {default as UUID} from "node-uuid";
 
 function App() {
   const [route, setRoute] = useState(0);
@@ -36,8 +36,8 @@ function App() {
   let [isOpen, setIsOpen] = useState(false);
 
   async function closeModal() {
-    var temp = [...userList];
-    var time = temp[index].timestamp;
+    let temp = [...userList];
+    let time = temp[index].timestamp;
 
     temp[index] = {
       id: id,
@@ -50,7 +50,7 @@ function App() {
     };
     console.log(temp, index, list);
     setUserList(temp);
-    await axios.post("http://localhost:3000/updateNote",{note:temp,id:id},{
+    await axios.post("http://localhost:3000/updateNote",{notes:temp},{
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
   }}).then(async(response)=>{
@@ -70,6 +70,35 @@ function App() {
     setTags(null);
   }
 
+  const handleDragDrop = async (results)=>{
+    const {source,destination,type} = results;
+    if(!destination) return;
+
+    if(source.droppableId === destination.droppableId && source.index===destination.index) return;
+
+    if(type==='group'){
+      const reorderedUserList = [...userList];
+      const sourceIndex = source.index;
+      const destinationIndex = destination.index;
+      const [removedUserList] = reorderedUserList.splice(sourceIndex,1);
+      reorderedUserList.splice(destinationIndex,0,removedUserList)
+
+      await axios.post("http://localhost:3000/updateNote",{notes:reorderedUserList},{
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+  }}).then(async(response)=>{
+    await axios.get("http://localhost:3000/").then((response) => {
+      console.log(response);
+      setUserList(response.data.notes);
+    });
+  })
+
+      return setUserList(reorderedUserList)
+
+      
+    }
+  }
+
   function openModal(note, idx) {
     // console.log(note)
     setIndex(idx);
@@ -78,7 +107,7 @@ function App() {
     setBody(note.Body);
     setList(note.List);
     setImage(note.image);
-    setTags(note.tags);
+    setTags(note.tags ? note.tags : []);
     setIsOpen(true);
   }
 
@@ -92,6 +121,7 @@ function App() {
     setSelectedFile(e.target.files[0]);
   };
 
+  
   const handleCheckBox = (idx) => {
     var temp = [...userList];
     temp[index].List[idx].completed = JSON.parse(!temp[index].List[idx].completed);
@@ -109,7 +139,13 @@ function App() {
 
   const addTag = () => {
     var temp = [...userList];
-    temp[index].tags.push(`Tag ${temp[index].tags.length + 1}`);
+    try{
+      temp[index].tags.push(`Tag ${temp[index].tags.length + 1}`);
+    }catch{
+      temp[index].tags = [];
+      temp[index].tags.push(`Tag ${temp[index].tags.length + 1}`);
+    }
+    
     setUserList(temp);
   };
 
@@ -255,9 +291,11 @@ function App() {
 
   return (
     <>
+      
       <div>
         <Toaster />
       </div>
+      
       <Transition appear show={isOpen} as={Fragment}>
         <Dialog as="div" className="relative z-10" onClose={closeModal}>
           <Transition.Child
@@ -318,10 +356,11 @@ function App() {
                         <h1>List Section</h1>
                         {list.length > 0 ? (
                           list.map((item, idx) => {
+                           
                             return (
-                              <div className="flex gap-2">
+                              <div id={UUID.v4()} className="flex gap-2">
                                 <input
-                                  onClick={() => {
+                                  onChange={() => {
                                     handleCheckBox(idx);
                                   }}
                                   checked={JSON.parse(item.completed)}
@@ -330,9 +369,7 @@ function App() {
                                   id={idx}
                                 />
                                 <input
-                                  onChange={(e) => {
-                                    handleList(e, idx);
-                                  }}
+                                  onChange={(e)=>handleList(e, idx)}
                                   value={item.title}
                                 />
                                 <button
@@ -370,9 +407,9 @@ function App() {
             
             <div className="flex flex-row flex-wrap items-center gap-2 mt-5">
               <h1>Tags: </h1>
-              {tags.length>0 && tags.map((tag,idx)=>{
+              {tags.length>0 && (tags.map((tag,idx)=>{
                 return (
-                  <div className="p-2 w-[3rem] group transition-all overflow-hidden duration-120 hover:w-[3.5rem] flex justify-center flex-row gap-2 items-center rounded-r-full rounded-l-full outline-gray-700/[85%] outline outline-[1px]">
+                  <div id={UUID.v4()} className="p-2 w-[3rem] group transition-all overflow-hidden duration-120 hover:w-[3.5rem] flex justify-center flex-row gap-2 items-center rounded-r-full rounded-l-full outline-gray-700/[85%] outline outline-[1px]">
                   <input onChange={(e) => {
                                     handleTag(e, idx);
                                   }} className="text-[0.7rem] w-full flex-shrink-0 bg-transparent" value={tag}/>
@@ -381,7 +418,7 @@ function App() {
                   </div>
                 </div>
                 )
-              })}
+              }))}
               <BsPlus onClick={() => {
                                 addTag();
                               }} className="scale-[120%] hover:scale-150 transition-all duration-100 fill-white"/>
@@ -524,9 +561,9 @@ function App() {
                         {newList.length > 0 ? (
                           newList.map((item, idx) => {
                             return (
-                              <div className="flex gap-2">
+                              <div key={id} className="flex gap-2">
                                 <input
-                                  onClick={() => {
+                                  onChange={() => {
                                     handleNewCheckBox(idx);
                                   }}
                                   checked={JSON.parse(item.completed)}
@@ -577,7 +614,7 @@ function App() {
               <h1>Tags: </h1>
               {newTags.length>0 && newTags.map((tag,idx)=>{
                 return (
-                  <div className="p-2 w-[3.5rem] group transition-all overflow-hidden duration-120 flex justify-center flex-row gap-2 items-center rounded-r-full rounded-l-full outline-gray-700/[85%] outline outline-[1px]">
+                  <div key={newTags.length} className="p-2 w-[3.5rem] group transition-all overflow-hidden duration-120 flex justify-center flex-row gap-2 items-center rounded-r-full rounded-l-full outline-gray-700/[85%] outline outline-[1px]">
                   <input onChange={(e) => {
                                     handleNewTag(e, idx);
                                   }} className="text-[0.7rem] w-full flex-shrink-0 bg-transparent" value={tag}/>
@@ -611,7 +648,7 @@ function App() {
                       className="w-[0.1px] h-[0.1px] opacity-0 overflow-hidden absolute z-[-1]"
                       type="file"
                     />
-                    <label for="file">
+                    <label htmlFor="file">
                       <HiOutlinePhotograph className="scale-[130%] rounded-full" />
                     </label>
                     
@@ -659,16 +696,25 @@ function App() {
               </div>
             </div>
             {/* To-list */}
-            <div className="flex p-2 gap-[1rem] md:flex-wrap flex-col md:flex-row flex-grow ">
-              {userList.length > 0 ? (
+            <DragDropContext onDragEnd={handleDragDrop}>
+
+          
+            <Droppable droppableId="ROOT" type="group">
+            
+           
+              {(provided)=>(
+                 <div {...provided.droppableProps} ref={provided.innerRef} className="flex p-2 gap-[1rem] md:flex-wrap flex-col md:flex-row flex-grow ">
+                  {userList.length > 0 ? (
                 userList.map((item, idx) => {
                   return (
-                    <div
-                      onClick={() => {
-                        openModal(item, idx);
-                      }}
+                    <Draggable draggableId={item.id} key={item.id} index={idx}
+                      
                     >
-                      <NotesCards
+                      {(provided)=>(
+                        <div onClick={() => {
+                          openModal(item, idx);
+                        }} {...provided.dragHandleProps} {...provided.draggableProps} ref={provided.innerRef}>
+                          <NotesCards
                         CardInfo={item}
                         oidx={idx}
                         userList={userList}
@@ -677,16 +723,23 @@ function App() {
                           console.log("clc");
                         }}
                       />
-                    </div>
+                        </div>
+                      )}
+                    </Draggable>
                   );
                 })
               ) : (
                 <div>No Notes Written Yet</div>
               )}
-            </div>
+                </div>
+              )}
+            
+            </Droppable>
+            </DragDropContext>
           </div>
         </div>
       </div>
+
     </>
   );
 }
